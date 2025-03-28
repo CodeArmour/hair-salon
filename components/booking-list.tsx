@@ -3,28 +3,69 @@
 import { useState, useEffect } from "react"
 import type { Booking } from "@/lib/types"
 import BookingItem from "@/components/booking-item"
+import { fetchAppointments, deleteAppointment } from "@/actions/appointment-actions"
+import { toast } from "sonner"
 
-interface BookingListProps {
-  bookings: Booking[]
-  onEdit: (booking: Booking) => void
-  onDelete: (id: string) => void
-}
+export default function BookingList({ onEditBooking }: { onEditBooking: (booking: Booking) => void }) {
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-export default function BookingList({ bookings, onEdit, onDelete }: BookingListProps) {
-  const [sortedBookings, setSortedBookings] = useState<Booking[]>([])
+  // Function to load appointments
+  const loadAppointments = async () => {
+    try {
+      setIsLoading(true)
+      const fetchedAppointments = await fetchAppointments()
+      setBookings(fetchedAppointments)
+    } catch (error) {
+      console.error("Failed to fetch appointments", error)
+      toast.error("Failed to load appointments")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
-  // Sort bookings by date and time
+  // Initial load of appointments
   useEffect(() => {
-    const sorted = [...bookings].sort((a, b) => {
-      const dateA = new Date(`${a.date}T${a.time}`)
-      const dateB = new Date(`${b.date}T${b.time}`)
-      return dateA.getTime() - dateB.getTime()
-    })
+    loadAppointments()
+  }, [])
 
-    setSortedBookings(sorted)
-  }, [bookings])
+  // Function to handle deletion
+  const handleDelete = async (id: string) => {
+    try {
+      const result = await deleteAppointment(id)
+      toast.success(result.message)
+      // Reload appointments after deletion to ensure consistent state
+      await loadAppointments()
+    } catch (error) {
+      console.error("Failed to delete appointment", error)
+      toast.error("Failed to delete appointment")
+    }
+  }
 
-  if (sortedBookings.length === 0) {
+  // Listen for custom event to refresh appointments
+  useEffect(() => {
+    const handleAppointmentChange = () => {
+      loadAppointments()
+    }
+
+    // Add event listener
+    window.addEventListener('appointment-changed', handleAppointmentChange)
+
+    // Cleanup listener
+    return () => {
+      window.removeEventListener('appointment-changed', handleAppointmentChange)
+    }
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        <p>Loading appointments...</p>
+      </div>
+    )
+  }
+
+  if (bookings.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
         <p>No bookings yet. Add your first appointment!</p>
@@ -34,15 +75,14 @@ export default function BookingList({ bookings, onEdit, onDelete }: BookingListP
 
   return (
     <div className="space-y-4">
-      {sortedBookings.map((booking) => (
+      {bookings.map((booking) => (
         <BookingItem
           key={booking.id}
           booking={booking}
-          onEdit={() => onEdit(booking)}
-          onDelete={() => onDelete(booking.id)}
+          onEdit={() => onEditBooking(booking)}
+          onDelete={() => handleDelete(booking.id)}
         />
       ))}
     </div>
   )
 }
-

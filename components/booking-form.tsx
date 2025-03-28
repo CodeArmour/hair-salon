@@ -1,21 +1,21 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { Booking } from "@/lib/types"
+import { createAppointment, updateAppointment } from "@/actions/appointment-actions"
+import { toast } from "sonner"
 
 interface BookingFormProps {
-  onSubmit: (booking: Booking) => void
-  initialData: Booking | null
-  onCancel: () => void
+  initialData?: Booking | null
+  onCancel?: () => void
 }
 
-export default function BookingForm({ onSubmit, initialData, onCancel }: BookingFormProps) {
+export default function BookingForm({ initialData, onCancel }: BookingFormProps) {
   const [formData, setFormData] = useState<Omit<Booking, "id">>({
     clientName: "",
     phoneNumber: "",
@@ -25,6 +25,7 @@ export default function BookingForm({ onSubmit, initialData, onCancel }: Booking
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Load initial data when editing
   useEffect(() => {
@@ -58,68 +59,53 @@ export default function BookingForm({ onSubmit, initialData, onCancel }: Booking
     }
   }
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {}
-
-    if (!formData.clientName.trim()) {
-      newErrors.clientName = "Client name is required"
-    }
-
-    if (!formData.phoneNumber.trim()) {
-      newErrors.phoneNumber = "Phone number is required"
-    } else if (!/^\+?[0-9\s-()]{8,}$/.test(formData.phoneNumber)) {
-      newErrors.phoneNumber = "Please enter a valid phone number"
-    }
-
-    if (!formData.date) {
-      newErrors.date = "Date is required"
-    } else {
-      // Check if the selected date is a Sunday
-      const selectedDate = new Date(formData.date)
-      if (selectedDate.getDay() === 0) {
-        // 0 is Sunday
-        newErrors.date = "The salon is closed on Sundays"
-      }
-    }
-
-    if (!formData.time) {
-      newErrors.time = "Time is required"
-    } else {
-      // Check if the selected time is within working hours (8 AM - 8 PM)
-      const hour = Number.parseInt(formData.time.split(":")[0])
-      if (hour < 8 || hour >= 20) {
-        newErrors.time = "The salon is open from 8 AM to 8 PM"
-      }
-    }
-
-    if (!formData.stylist) {
-      newErrors.stylist = "Stylist is required"
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsSubmitting(true)
+    setErrors({})
 
-    if (validateForm()) {
+    const formDataObject = new FormData()
+    Object.entries(formData).forEach(([key, value]) => {
+      formDataObject.append(key, value)
+    })
+
+    try {
+      let result;
       if (initialData) {
-        onSubmit({ ...formData, id: initialData.id })
+        result = await updateAppointment(initialData.id, formDataObject)
       } else {
-        onSubmit(formData as Booking)
+        result = await createAppointment(formDataObject)
       }
 
-      // Reset form if not editing
-      if (!initialData) {
-        setFormData({
-          clientName: "",
-          phoneNumber: "",
-          date: "",
-          time: "",
-          stylist: "",
-        })
+      if (result.errors) {
+        setErrors(
+          Object.fromEntries(
+            Object.entries(result.errors).map(([key, value]) => [key, value[0]])
+          )
+        )
+        toast.error(result.message || "Failed to save appointment")
+      } else {
+        toast.success(result.message || "Appointment saved successfully")
+        
+        // Reset form if not editing
+        if (!initialData) {
+          setFormData({
+            clientName: "",
+            phoneNumber: "",
+            date: "",
+            time: "",
+            stylist: "",
+          })
+        }
+        
+        // Close edit mode or modal
+        onCancel?.()
       }
+    } catch (error) {
+      toast.error("An unexpected error occurred")
+      console.error(error)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -136,6 +122,7 @@ export default function BookingForm({ onSubmit, initialData, onCancel }: Booking
   // List of stylists
   const stylists = ["Emma", "Sophie", "Thomas", "Lukas", "Marie"]
 
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
@@ -145,10 +132,12 @@ export default function BookingForm({ onSubmit, initialData, onCancel }: Booking
           name="clientName"
           value={formData.clientName}
           onChange={handleChange}
+          disabled={isSubmitting}
           className={errors.clientName ? "border-red-500" : ""}
         />
         {errors.clientName && <p className="text-red-500 text-sm">{errors.clientName}</p>}
       </div>
+
 
       <div className="space-y-2">
         <Label htmlFor="phoneNumber">Phone Number</Label>
@@ -211,11 +200,20 @@ export default function BookingForm({ onSubmit, initialData, onCancel }: Booking
       </div>
 
       <div className="flex gap-2 pt-2">
-        <Button type="submit" className="flex-1">
-          {initialData ? "Update Booking" : "Add Booking"}
+        <Button 
+          type="submit" 
+          className="flex-1" 
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? "Saving..." : (initialData ? "Update Booking" : "Add Booking")}
         </Button>
         {initialData && (
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
         )}
@@ -223,4 +221,3 @@ export default function BookingForm({ onSubmit, initialData, onCancel }: Booking
     </form>
   )
 }
-
