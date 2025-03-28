@@ -1,14 +1,38 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useOptimistic } from "react"
 import type { Booking } from "@/lib/types"
 import BookingItem from "@/components/booking-item"
-import { fetchAppointments, deleteAppointment } from "@/actions/appointment-actions"
+import { fetchAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/actions/appointment-actions"
 import { toast } from "sonner"
 
 export default function BookingList({ onEditBooking }: { onEditBooking: (booking: Booking) => void }) {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Use optimistic updates for bookings
+  const [optimisticBookings, addOptimisticBooking] = useOptimistic(
+    bookings,
+    (currentState, newBooking: Booking | { type: 'delete', id: string }) => {
+      if ('type' in newBooking && newBooking.type === 'delete') {
+        // Remove booking optimistically
+        return currentState.filter(booking => booking.id !== newBooking.id)
+      }
+      
+      // Add or update booking optimistically
+      const existingBookingIndex = currentState.findIndex(b => b.id === (newBooking as Booking).id)
+      
+      if (existingBookingIndex !== -1) {
+        // Update existing booking
+        const updatedBookings = [...currentState]
+        updatedBookings[existingBookingIndex] = newBooking as Booking
+        return updatedBookings
+      } else {
+        // Add new booking
+        return [...currentState, newBooking as Booking]
+      }
+    }
+  )
 
   // Function to load appointments
   const loadAppointments = async () => {
@@ -29,14 +53,75 @@ export default function BookingList({ onEditBooking }: { onEditBooking: (booking
     loadAppointments()
   }, [])
 
+  // Optimistic create/update appointment
+  const handleCreateOrUpdateAppointment = async (booking: Booking, isUpdate: boolean = false) => {
+    try {
+      // Optimistically add/update the booking
+      addOptimisticBooking(booking)
+
+      const formData = new FormData()
+      Object.entries(booking).forEach(([key, value]) => {
+        if (key !== 'id') {
+          formData.append(key, value)
+        }
+      })
+
+      let result;
+      if (isUpdate) {
+        result = await updateAppointment(booking.id, formData)
+      } else {
+        result = await createAppointment(formData)
+      }
+
+      if (result.errors) {
+        // Revert optimistic update if there are validation errors
+        setBookings(currentBookings => 
+          isUpdate 
+            ? currentBookings 
+            : currentBookings.filter(b => b.id !== booking.id)
+        )
+        toast.error(result.message || "Failed to save appointment")
+      } else {
+        // Update with the server-confirmed booking (in case of ID changes for new bookings)
+        if (!isUpdate) {
+          const newBooking = { ...booking, id: result.appointment.id }
+          setBookings(currentBookings => 
+            currentBookings.map(b => 
+              b === booking ? newBooking : b
+            )
+          )
+        }
+        toast.success(result.message || "Appointment saved successfully")
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setBookings(currentBookings => 
+        isUpdate 
+          ? currentBookings 
+          : currentBookings.filter(b => b.id !== booking.id)
+      )
+      toast.error("An unexpected error occurred")
+      console.error(error)
+    }
+  }
+
   // Function to handle deletion
   const handleDelete = async (id: string) => {
     try {
+      // Optimistically remove the booking
+      addOptimisticBooking({ type: 'delete', id })
+
       const result = await deleteAppointment(id)
       toast.success(result.message)
-      // Reload appointments after deletion to ensure consistent state
-      await loadAppointments()
     } catch (error) {
+      // Revert optimistic deletion
+      setBookings(currentBookings => {
+        // If the booking was already in the list, it will be added back
+        const deletedBooking = bookings.find(b => b.id === id)
+        return deletedBooking 
+          ? [...currentBookings, deletedBooking] 
+          : currentBookings
+      })
       console.error("Failed to delete appointment", error)
       toast.error("Failed to delete appointment")
     }
@@ -65,7 +150,7 @@ export default function BookingList({ onEditBooking }: { onEditBooking: (booking
     )
   }
 
-  if (bookings.length === 0) {
+  if (optimisticBookings.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
         <p>No bookings yet. Add your first appointment!</p>
@@ -75,7 +160,7 @@ export default function BookingList({ onEditBooking }: { onEditBooking: (booking
 
   return (
     <div className="space-y-4">
-      {bookings.map((booking) => (
+      {optimisticBookings.map((booking) => (
         <BookingItem
           key={booking.id}
           booking={booking}

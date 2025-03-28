@@ -71,6 +71,15 @@ export default function BookingForm({ initialData, onCancel }: BookingFormProps)
 
     try {
       let result;
+      
+      // Prepare optimistic booking object
+      const optimisticBooking: Booking = initialData 
+        ? { ...initialData, ...formData } 
+        : { 
+            id: `temp-${Date.now()}`, 
+            ...formData 
+          }
+
       if (initialData) {
         result = await updateAppointment(initialData.id, formDataObject)
       } else {
@@ -122,7 +131,6 @@ export default function BookingForm({ initialData, onCancel }: BookingFormProps)
   // List of stylists
   const stylists = ["Emma", "Sophie", "Thomas", "Lukas", "Marie"]
 
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
@@ -137,7 +145,6 @@ export default function BookingForm({ initialData, onCancel }: BookingFormProps)
         />
         {errors.clientName && <p className="text-red-500 text-sm">{errors.clientName}</p>}
       </div>
-
 
       <div className="space-y-2">
         <Label htmlFor="phoneNumber">Phone Number</Label>
