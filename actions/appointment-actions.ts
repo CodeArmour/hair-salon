@@ -6,9 +6,8 @@ import { z } from "zod"
 
 // Dispatch client-side event for appointment changes
 function dispatchAppointmentChangeEvent() {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('appointment-changed'))
-  }
+  // This function will be handled differently on the client side
+  return { changed: true }
 }
 
 // Validation schema
@@ -57,7 +56,7 @@ export async function createAppointment(formData: FormData) {
     })
 
     // Dispatch event for client-side update
-    dispatchAppointmentChangeEvent()
+    const result = dispatchAppointmentChangeEvent()
 
     revalidatePath('/appointments')
     return { 
@@ -69,7 +68,8 @@ export async function createAppointment(formData: FormData) {
         date,
         time,
         stylist
-      }
+      },
+      changed: result.changed
     }
   } catch (error) {
     console.error('Database Error:', error)
@@ -112,7 +112,7 @@ export async function updateAppointment(id: string, formData: FormData) {
     })
 
     // Dispatch event for client-side update
-    dispatchAppointmentChangeEvent()
+    const result = dispatchAppointmentChangeEvent()
 
     revalidatePath('/appointments')
     return { 
@@ -124,7 +124,8 @@ export async function updateAppointment(id: string, formData: FormData) {
         date,
         time,
         stylist
-      }
+      },
+      changed: result.changed
     }
   } catch (error) {
     console.error('Database Error:', error)
@@ -143,10 +144,13 @@ export async function deleteAppointment(id: string) {
     })
 
     // Dispatch event for client-side update
-    dispatchAppointmentChangeEvent()
+    const result = dispatchAppointmentChangeEvent()
 
     revalidatePath('/appointments')
-    return { message: 'Appointment deleted successfully' }
+    return { 
+      message: 'Appointment deleted successfully',
+      changed: result.changed 
+    }
   } catch (error) {
     console.error('Database Error:', error)
     return {

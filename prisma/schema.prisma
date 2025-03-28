@@ -17,13 +17,14 @@ enum classes {
   Norbi
   Tomi
 }
+
 model Appointment {
-  id        String   @id @default(cuid())
-  clientname      String
+  id          String   @id @default(cuid())
+  clientname  String
   clientphone String
-  date      DateTime
-  time      DateTime
-  stylists  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  date        DateTime
+  time        DateTime
+  stylists    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

@@ -13,9 +13,9 @@ import { toast } from "sonner"
 interface BookingFormProps {
   initialData?: Booking | null
   onCancel?: () => void
+  onRefresh?: () => void  // New prop for refresh callback
 }
-
-export default function BookingForm({ initialData, onCancel }: BookingFormProps) {
+export default function BookingForm({ initialData, onCancel,onRefresh }: BookingFormProps) {
   const [formData, setFormData] = useState<Omit<Booking, "id">>({
     clientName: "",
     phoneNumber: "",
@@ -71,15 +71,6 @@ export default function BookingForm({ initialData, onCancel }: BookingFormProps)
 
     try {
       let result;
-      
-      // Prepare optimistic booking object
-      const optimisticBooking: Booking = initialData 
-        ? { ...initialData, ...formData } 
-        : { 
-            id: `temp-${Date.now()}`, 
-            ...formData 
-          }
-
       if (initialData) {
         result = await updateAppointment(initialData.id, formDataObject)
       } else {
@@ -95,6 +86,9 @@ export default function BookingForm({ initialData, onCancel }: BookingFormProps)
         toast.error(result.message || "Failed to save appointment")
       } else {
         toast.success(result.message || "Appointment saved successfully")
+        
+        // Trigger refresh if callback is provided
+        onRefresh?.()
         
         // Reset form if not editing
         if (!initialData) {
@@ -129,7 +123,7 @@ export default function BookingForm({ initialData, onCancel }: BookingFormProps)
   }).filter(Boolean) as string[]
 
   // List of stylists
-  const stylists = ["Emma", "Sophie", "Thomas", "Lukas", "Marie"]
+  const stylists = ["Tomi", "Norbi", "AbdulAllah", "Other"]
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

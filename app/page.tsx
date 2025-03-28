@@ -41,9 +41,9 @@ export default function LandingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
-            { title: "Haircut & Styling", price: "€45+", image: "/placeholder.svg?height=400&width=600" },
-            { title: "Color & Highlights", price: "€75+", image: "/placeholder.svg?height=400&width=600" },
-            { title: "Treatment & Care", price: "€60+", image: "/placeholder.svg?height=400&width=600" },
+            { title: "Haircut & Styling", price: "€45+", image: "/hair1.jpg?height=400&width=600" },
+            { title: "Color & Highlights", price: "€75+", image: "/hair2.jpg?height=400&width=600" },
+            { title: "Treatment & Care", price: "€60+", image: "/hair3.jpg?height=400&width=600" },
           ].map((service, index) => (
             <div
               key={index}
@@ -98,7 +98,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="relative h-[400px] overflow-hidden rounded-sm">
-            <Image src="/placeholder.svg?height=800&width=600" alt="Salon team" fill className="object-cover" />
+            <Image src="/aboutbg.jpg?height=800&width=600" alt="Salon team" fill className="object-cover" />
           </div>
         </div>
       </section>

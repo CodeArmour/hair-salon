@@ -10,6 +10,7 @@ import { Toaster } from "sonner"
 
 export default function BookingsPage() {
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   const handleEditBooking = (booking: Booking) => {
     setEditingBooking(booking)
@@ -17,6 +18,11 @@ export default function BookingsPage() {
 
   const handleCancelEdit = () => {
     setEditingBooking(null)
+  }
+
+  const handleRefresh = () => {
+    // Increment refresh trigger to force BookingList re-render
+    setRefreshTrigger(prev => prev + 1)
   }
 
   return (
@@ -38,6 +44,7 @@ export default function BookingsPage() {
             <BookingForm
               initialData={editingBooking}
               onCancel={handleCancelEdit}
+              onRefresh={handleRefresh}
             />
           </div>
 
@@ -45,7 +52,10 @@ export default function BookingsPage() {
             <h2 className="text-2xl font-light mb-6 tracking-wide">
               UPCOMING <span className="font-medium">APPOINTMENTS</span>
             </h2>
-            <BookingList onEditBooking={handleEditBooking} />
+            <BookingList 
+              key={refreshTrigger}
+              onEditBooking={handleEditBooking} 
+            />
           </div>
         </div>
       </div>
